@@ -220,13 +220,16 @@ def busquedaDoble():
                 
                 #Intenta hacer la request con los parametros y compara la longitud con la erronea
                 try:
-                    req = requests.post(url, data=data, timeout=1)
+                    session = requests.session()
+                    req = session.post(url, data=data, timeout=1)
+                    req = session.post(url, data=data, timeout=1)
                     txt = req.content
                     lenReq = len(txt)
                     if lenReq > lenCheck or lenReq < lenCheck:
                         output = output + now[:-7]+"\nHit en la url: "+url+"\n[ + ] User: "+user+ " Password: "+ password+"\n"
                         print("[ + ] User: "+user+ " Password: "+ password)
                 except:
+                    print ("EXC")
                     pass
                 bar()
             filepass.close()
@@ -256,7 +259,7 @@ def busquedaPass():
     
     
     reqCheck = requests.post(url, data=data, timeout=1)
-    reqCheck = reqCheck.text
+    reqCheck = reqCheck.content
     lenCheck = len(reqCheck)
     
     
@@ -284,8 +287,10 @@ def busquedaPass():
 
             try:
                 
-                req = requests.post(url, data=data, timeout=1)
-                txt = req.text
+                session = requests.session()
+                req = session.post(url, data=data, timeout=1)
+                req = session.post(url, data=data, timeout=1)
+                txt = req.content
                 lenReq = len(txt)
                 if lenReq > lenCheck or lenReq < lenCheck:
                     output = output + now[:-7]+"\nHit en la url: "+url+"\n[ + ] User: "+username+ " Password: "+ password+"\n"
@@ -316,7 +321,7 @@ def busquedaUser():
     #Checkea la longitud de la respuesta de un intento erroneo de login
     
     reqCheck = requests.post(url, data=data, timeout=1)
-    reqCheck = reqCheck.text
+    reqCheck = reqCheck.content
     lenCheck = len(reqCheck)
     
     #Inicio del bucle
@@ -342,8 +347,10 @@ def busquedaUser():
             #Intenta hacer la request con los parametros y compara la longitud con la erronea
         
             try:
-                req = requests.post(url, data=data, timeout=1)
-                txt = req.text
+                session = requests.session()
+                req = session.post(url, data=data, timeout=1)
+                req = session.post(url, data=data, timeout=1)
+                txt = req.content
                 lenReq = len(txt)
                 if lenReq > lenCheck or lenReq < lenCheck:
                     output = output + now[:-7]+"\nHit en la url: "+url+"\n[ + ] User: "+username+ " Password: "+ password+"\n"
@@ -379,5 +386,4 @@ if __name__ == '__main__':
     sys.exit(1)
         
         
-
 
